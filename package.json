@@ -4,7 +4,7 @@
   "description": "A real-time polling application built with React and Express.",
   "main": "index.js",
   "scripts": {
-    "build": "npm install --prefix backend && npm install --prefix frontend && npx --prefix frontend vite build",
+    "build": "npm install --prefix backend && npm install --prefix frontend && npm --prefix frontend run build",
     "start": "npm run start --prefix backend"
   },
   "repository": {
