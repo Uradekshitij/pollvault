@@ -20,11 +20,14 @@ app.use("/api/votes", votesRouter);
 const port = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
-if(process.env.NODE_ENV==="production") {
-  app.use(express.static(path.join(__dirname,"../frontend/dist")));
-  app.get("*", (req, res) => {
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+
+  // serve index.html for any route not handled by the API
+  // use a regular expression to avoid path-to-regexp parsing issues
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
-  })
+  });
 }
 
 mongoose
