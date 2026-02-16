@@ -6,99 +6,196 @@ import Vote from "../models/Vote.js";
 
 const router = express.Router();
 
-// list all polls (for home page)
+/**
+ * GET /api/polls
+ * List all polls
+ */
 router.get("/", async (req, res) => {
   try {
     const polls = await Poll.find().lean();
-    res.json({ polls });
+    return res.json({ polls });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch polls",
+      error: err.message,
+    });
   }
 });
 
-// create a new poll with options
+/**
+ * POST /api/polls
+ * Create a new poll with options
+ */
 router.post("/", async (req, res) => {
   try {
     const { question, options, creatorFingerprint } = req.body;
-    if (!question || !Array.isArray(options) || options.length < 2 || !creatorFingerprint) {
-      return res.status(400).json({ error: "Invalid payload" });
+
+    // validation
+    if (
+      typeof question !== "string" ||
+      !Array.isArray(options) ||
+      options.length < 2 ||
+      !creatorFingerprint
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payload",
+      });
     }
 
-    const poll = await Poll.create({ question, creatorFingerprint });
-    const optionDocs = options.map((label, idx) => ({
+    const poll = await Poll.create({
+      question,
+      creatorFingerprint,
+    });
+
+    const optionDocs = options.map((label, index) => ({
       poll_id: poll._id,
       label,
-      position: idx,
+      position: index,
     }));
+
     await PollOption.insertMany(optionDocs);
 
-    res.status(201).json({ poll });
+    return res.status(201).json({
+      success: true,
+      poll,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create poll",
+      error: err.message,
+    });
   }
 });
 
-// fetch poll and its options
+/**
+ * GET /api/polls/:id
+ * Fetch a poll with options
+ */
 router.get("/:id", async (req, res) => {
   try {
-    const poll = await Poll.findById(req.params.id).lean();
-    if (!poll) return res.status(404).json({ error: "Not found" });
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid poll id",
+      });
+    }
+
+    const poll = await Poll.findById(id).lean();
+    if (!poll) {
+      return res.status(404).json({
+        success: false,
+        message: "Poll not found",
+      });
+    }
 
     const options = await PollOption.find({ poll_id: poll._id })
       .sort("position")
       .lean();
-    res.json({ poll, options });
+
+    return res.json({
+      success: true,
+      poll,
+      options,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch poll",
+      error: err.message,
+    });
   }
 });
 
-// delete poll (only creator can)
+/**
+ * DELETE /api/polls/:id
+ * Delete poll (creator or admin only)
+ */
 router.delete("/:id", async (req, res) => {
   try {
     const { fingerprint, adminKey } = req.body || {};
-    const poll = await Poll.findById(req.params.id);
-    if (!poll) return res.status(404).json({ error: "Not found" });
+    const { id } = req.params;
 
-    // allow deletion if fingerprint matches creator
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid poll id",
+      });
+    }
+
+    const poll = await Poll.findById(id);
+    if (!poll) {
+      return res.status(404).json({
+        success: false,
+        message: "Poll not found",
+      });
+    }
+
     let allowed = false;
+
     if (fingerprint && poll.creatorFingerprint === fingerprint) {
       allowed = true;
     }
 
-    // or if administrator key provided and valid
     if (!allowed && adminKey && adminKey === process.env.ADMIN_KEY) {
       allowed = true;
     }
 
     if (!allowed) {
-      return res.status(403).json({ error: "Not allowed" });
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to delete poll",
+      });
     }
 
     await Poll.deleteOne({ _id: poll._id });
     await PollOption.deleteMany({ poll_id: poll._id });
     await Vote.deleteMany({ poll_id: poll._id });
-    res.json({ success: true });
+
+    return res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete poll",
+      error: err.message,
+    });
   }
 });
 
-// vote counts for a poll
+/**
+ * GET /api/polls/:id/votes
+ * Get vote counts
+ */
 router.get("/:id/votes", async (req, res) => {
   try {
     const { id } = req.params;
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: "Invalid poll id" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid poll id",
+      });
     }
+
     const votes = await Vote.aggregate([
       { $match: { poll_id: new mongoose.Types.ObjectId(id) } },
       { $group: { _id: "$option_id", count: { $sum: 1 } } },
     ]);
-    res.json({ votes });
+
+    return res.json({
+      success: true,
+      votes,
+    });
   } catch (err) {
-    console.error("votes aggregation error", err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch votes",
+      error: err.message,
+    });
   }
 });
 

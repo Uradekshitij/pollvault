@@ -2,8 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPoll } from "@/api";
 import { generateFingerprint } from "@/lib/fingerprint";
-// using simple HTML elements for button and input
-// no external UI components needed
 import { Plus, X, Loader2, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,7 +16,9 @@ const CreatePoll = () => {
   };
 
   const removeOption = (index) => {
-    if (options.length > 2) setOptions(options.filter((_, i) => i !== index));
+    if (options.length > 2) {
+      setOptions(options.filter((_, i) => i !== index));
+    }
   };
 
   const updateOption = (index, value) => {
@@ -29,31 +29,44 @@ const CreatePoll = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const trimmedQuestion = question.trim();
-    const trimmedOptions = options.map(o => o.trim()).filter(o => o.length > 0);
+    const trimmedOptions = options
+      .map((o) => o.trim())
+      .filter((o) => o.length > 0);
 
     if (!trimmedQuestion) {
       toast.error("Please enter a question");
       return;
     }
+
     if (trimmedOptions.length < 2) {
       toast.error("You need at least 2 options");
       return;
     }
+
     if (new Set(trimmedOptions).size !== trimmedOptions.length) {
       toast.error("Options must be unique");
       return;
     }
 
     setLoading(true);
+
     try {
       const fingerprint = generateFingerprint();
-      const { poll } = await createPoll(trimmedQuestion, trimmedOptions, fingerprint);
-      // store in local storage so we know owner for UI later
-      localStorage.setItem(`poll-owner-${poll.id}`, fingerprint);
-      navigate(`/poll/${poll.id}`);
+
+      const { poll } = await createPoll(
+        trimmedQuestion,
+        trimmedOptions,
+        fingerprint
+      );
+
+      const pollId = poll._id; // ✅ FIX: backend returns _id
+
+      localStorage.setItem(`poll-owner-${pollId}`, fingerprint);
+      navigate(`/poll/${pollId}`);
     } catch (err) {
-      toast.error("Failed to create poll: " + err.message);
+      toast.error(`Failed to create poll: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -75,24 +88,30 @@ const CreatePoll = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-card rounded-xl border p-6 shadow-sm space-y-5">
             <div>
-              <label className="block text-sm font-medium mb-2">Your Question</label>
+              <label className="block text-sm font-medium mb-2">
+                Your Question
+              </label>
               <input
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 placeholder="What should we have for lunch?"
                 maxLength={200}
-                className="text-base input bg-background border border-border rounded-md px-3 py-2 w-full"
+                className="input bg-background border border-border rounded-md px-3 py-2 w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Options</label>
+              <label className="block text-sm font-medium mb-2">
+                Options
+              </label>
+
               <div className="space-y-3">
                 {options.map((opt, i) => (
-                  <div key={i} className="flex gap-2 items-center animate-vote-in">
-                    <span className="text-xs font-medium text-muted-foreground w-5 shrink-0">
+                  <div key={i} className="flex gap-2 items-center">
+                    <span className="text-xs font-medium text-muted-foreground w-5">
                       {i + 1}.
                     </span>
+
                     <input
                       value={opt}
                       onChange={(e) => updateOption(i, e.target.value)}
@@ -100,11 +119,12 @@ const CreatePoll = () => {
                       maxLength={100}
                       className="input bg-background border border-border rounded-md px-3 py-2 w-full"
                     />
+
                     {options.length > 2 && (
                       <button
                         type="button"
                         onClick={() => removeOption(i)}
-                        className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                        className="text-muted-foreground hover:text-destructive"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -117,9 +137,10 @@ const CreatePoll = () => {
                 <button
                   type="button"
                   onClick={addOption}
-                  className="mt-3 flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                  className="mt-3 flex items-center gap-1.5 text-sm text-primary font-medium"
                 >
-                  <Plus className="w-4 h-4" /> Add option
+                  <Plus className="w-4 h-4" />
+                  Add option
                 </button>
               )}
             </div>
