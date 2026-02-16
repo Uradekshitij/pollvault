@@ -10,13 +10,12 @@ dotenv.config();
 
 const app = express();
 
-// CORS configuration
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-];
+const allowedOrigins = [process.env.CLIENT_URL];
+
 app.use(
   cors({
-    origin: function (origin, callback) {
+    origin: (origin, callback) => {
+      // allow server-to-server / health checks
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
@@ -25,30 +24,26 @@ app.use(
 
       return callback(new Error("Not allowed by CORS"));
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-app.options("*", cors());
-
 app.use(express.json());
 
-// API routes
 app.use("/api/polls", pollsRouter);
 app.use("/api/votes", votesRouter);
 
-
-const PORT = process.env.PORT || 5000;
+const port = process.env.PORT || 5000;
 
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("Connected to MongoDB");
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+    app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
     });
   })
   .catch((err) => {
-    console.error("Mongo connection error:", err);
+    console.error("Mongo connection error", err);
   });
