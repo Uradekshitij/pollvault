@@ -11,14 +11,26 @@ dotenv.config();
 const app = express();
 
 // CORS configuration
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+];
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true,
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+app.options("*", cors());
 
 app.use(express.json());
 
@@ -26,7 +38,6 @@ app.use(express.json());
 app.use("/api/polls", pollsRouter);
 app.use("/api/votes", votesRouter);
 
-app.options("*", cors());
 
 const PORT = process.env.PORT || 5000;
 
