@@ -13,7 +13,7 @@ const app = express();
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: process.env.CLIENT_URL,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -25,6 +25,8 @@ app.use(express.json());
 // API routes
 app.use("/api/polls", pollsRouter);
 app.use("/api/votes", votesRouter);
+
+app.options("*", cors());
 
 const PORT = process.env.PORT || 5000;
 
